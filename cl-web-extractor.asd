@@ -1,9 +1,3 @@
-(defpackage #:cl-web-extractor-asd
-  (:use :cl :asdf))
-
-(in-package :cl-web-extractor-asd)
-
-
 (defsystem cl-web-extractor
   :name "Web-Extractor"
   :description "Framework for extract data from web pages."
