@@ -19,49 +19,71 @@
 
 ;; THE REAL THING
 
-(defmacro def-web-struct-map (name forms) 
-  `(defparameter ,name (let ((sym-list nil))
-			 (loop for attr in ,froms do 
-			  (car attr
+(defun get-key (list symbol)
+  (if (eq (car list) symbol)
+      (cadr list)
+      (get-key (cdr list) symbol)))
 
-(defun create-web-ex (type data struct-map)
-    (loop for attr in struct-map do
-	 (list
-	  (car attr)
-	  (cond 
-	    ((get :follow attr) nil)
-	    ((get :collection attr) nil)
-	    (t (funcall (get :finder attr) data)))
+(defmacro def-web-extractor (name forms) 
+  `(defparameter ,name ',forms))
+			
 
-
-(defmacro def-web-struct-map (name forms)
-  `(defparameter ,name ,forms))
+(defun extract (data struct-map)
+  (loop for attr in struct-map collect
+       (list
+	(car attr)
+	(cond 
+	  ((get-key :follow attr) (extract 
+				   (funcall (get-key :finder attr) data) 
+				   (get-key :follow attr))
+	   ((get-key :collection attr) (let ((splitted-list (funcall (get-key :splitter attr) data)))
+					 (loop for spl in splitted-list collect
+					      (extract
+					       spl
+					       (get-key :collection attr)))))
+	   (t (funcall (get-key :finder attr) data)))
+	  
 
 ;; HOW TO USE IT AGAINST something like test.html
 
-(def-web-struct-map match-detail
+(defun file-string (path)
+  (with-open-file (s path)
+    (let* ((len (file-length s))
+           (data (make-string len)))
+      (values data (read-sequence data s)))))
+
+
+(defparameter *test-data* (file-string "test.html"))
+
+
+(def-web-extractor match-detail
     ((against :finder #'against-finder)))
 
-(def-web-struct-map match-map
+(def-web-extractor match-map
     ((date :finder #'date-finder)
      (score :finder #'score-finder)
      (details :follow match-detail :finder #'match-detail-finder))) 
 
-(def-web-struct-map player-map 
+(def-web-extractor simple-player-map 
     ((name :finder #'(lambda (html-str)
 		       (regexp-finder "Name:</td><td>(.*)</td>")))
-     (age :finder #'age-finder)
+     (age :finder #'(lambda (html-str)
+		       (regexp-finder "Age:</td><td>(.*)</td>")))))
+
+(def-web-extractor player-map 
+    ((name :finder #'(lambda (html-str)
+		       (regexp-finder "Name:</td><td>(.*)</td>")))
+     (age :finder #'(lambda (html-str)
+		       (regexp-finder "Age:</td><td>(.*)</td>")))
      (matches :collection match-map 
 	      :splitter #'(lambda (html-str)
-			   (xpath-splitter "" html-str)))))
+			   (xpath-splitter "/" html-str)))))
 
-(def-web-struct-map page-map
+(def-web-extractor page-map
     ((players :collection player-map 
 	      :splitter #'players-splitter)))
 
-(setf *players-web-ex* (create-web-ex :url "URL-Players" page-map))
-
-(setf *player-juan-web-ex* (create-web-ex :string "string from test.html" page-map))
+(setf *player-juan-web-ex* (extract "string from test.html" page-map))
 
 (funcall *player-juan-web-ex*)
 
@@ -77,6 +99,8 @@
 ;;     (:score "2-1")
 ;;     (:details 
 ;;      (:against "Pepe"))))))
+
+
 
 (expose players-web-ex)
 
