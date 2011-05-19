@@ -1,19 +1,25 @@
 (in-package :web-extractor)
 
-(defun extract () 1)
+;;;; SOME THIRD PARTY LIBS TESTS
 
-;; (pprint
-;;  (parse-html 
-;;   (http-request "http://www.google.com")))
+;; (defun extract () 1)
 
-(setq *atp-ranking* (drakma:http-request "http://www.atpworldtour.com/Rankings/Singles.aspx" :user-agent :explorer))
+;; ;; (pprint
+;; ;;  (parse-html 
+;; ;;   (http-request "http://www.google.com")))
 
-(define-sanitize-mode links
-    :elements (:a) 
-    :attributes ((:a :href)))
+;; (setq *atp-ranking* (drakma:http-request "http://www.atpworldtour.com/Rankings/Singles.aspx" :user-agent :explorer))
 
-(setq *atp-ranking-links* (parse-html (clean *atp-ranking* links)))
+;; (define-sanitize-mode links
+;;     :elements (:a) 
+;;     :attributes ((:a :href)))
 
+;; (setq *atp-ranking-links* (parse-html (clean *atp-ranking* links)))
+
+;; THE REAL THING
+
+(defmacro def-web-struct-map (name forms)
+  `(defparameter ,name ,forms))
 
 ;; HOW TO USE IT AGAINST something like test.html
 
@@ -38,6 +44,7 @@
 	      :splitter #'players-splitter)))
 
 (setf players-web-ex (create-web-ex :url "URL-Players" page-map))
+(setf players-web-ex2 (create-web-ex :string "<html></html>" page-map))
 
 (expose players-web-ex)
 
