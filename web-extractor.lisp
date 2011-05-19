@@ -1,6 +1,7 @@
 (in-package :web-extractor)
 
-;;;; SOME THIRD PARTY LIBS TESTS
+
+;;;; SOME THIRD PARTY LIBS TESTS    
 
 ;; (defun extract () 1)
 
@@ -17,6 +18,21 @@
 ;; (setq *atp-ranking-links* (parse-html (clean *atp-ranking* links)))
 
 ;; THE REAL THING
+
+(defmacro def-web-struct-map (name forms) 
+  `(defparameter ,name (let ((sym-list nil))
+			 (loop for attr in ,froms do 
+			  (car attr
+
+(defun create-web-ex (type data struct-map)
+    (loop for attr in struct-map do
+	 (list
+	  (car attr)
+	  (cond 
+	    ((get :follow attr) nil)
+	    ((get :collection attr) nil)
+	    (t (funcall (get :finder attr) data)))
+
 
 (defmacro def-web-struct-map (name forms)
   `(defparameter ,name ,forms))
@@ -43,8 +59,24 @@
     ((players :collection player-map 
 	      :splitter #'players-splitter)))
 
-(setf players-web-ex (create-web-ex :url "URL-Players" page-map))
-(setf players-web-ex2 (create-web-ex :string "<html></html>" page-map))
+(setf *players-web-ex* (create-web-ex :url "URL-Players" page-map))
+
+(setf *player-juan-web-ex* (create-web-ex :string "string from test.html" page-map))
+
+(funcall *player-juan-web-ex*)
+
+;; ((:name "Juan Monetta")
+;;  (:age "27")
+;;  (:matches 
+;;   (:COLLECTION 
+;;    ((:date "20/10/1990")
+;;     (:score "2-0")
+;;     (:details 
+;;      (:against "Alejandro")))
+;;    ((:date "20/10/1991")
+;;     (:score "2-1")
+;;     (:details 
+;;      (:against "Pepe"))))))
 
 (expose players-web-ex)
 
