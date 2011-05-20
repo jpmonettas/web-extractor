@@ -17,17 +17,44 @@
 
 ;; (setq *atp-ranking-links* (parse-html (clean *atp-ranking* links)))
 
+
+;; UTILS
+(defun get-key (symbol list)
+  (when (listp list)
+    (if (eq (car list) symbol)
+	(car (cdr list))
+	(get-key symbol (cdr list)))))
+
+(defun file-string (path)
+  (with-open-file (s path)
+    (let* ((len (file-length s))
+           (data (make-string len)))
+      (values data (read-sequence data s)))))
+
+(defun mkstr (&rest args)
+  (with-output-to-string (s)
+    (dolist (a args) (princ a s))))
+
+(defun symb (&rest args)
+  (values (intern (apply #'mkstr args))))
+
 ;; THE REAL THING
 
-(defun get-key (list symbol)
-  (if (eq (car list) symbol)
-      (cadr list)
-      (get-key (cdr list) symbol)))
 
-(defmacro def-web-extractor (name forms) 
-  `(defparameter ,name ',forms))
-			
+;; (def-web-extractor match-detail
+;;     ((against :finder #'against-finder)))
+;;
+;;(defparameter match-detail (list (list 'against #'against-finder)))
 
+
+(defmacro def-web-extractor (name attributes) 
+  `(defparameter ,name 
+     (quote
+      ,(loop for attr in attributes 
+	  collect 
+	    (list (car attr) (get-key :finder attr))))))
+	    
+		      
 (defun extract (data struct-map)
   (loop for attr in struct-map collect
        (list
@@ -45,13 +72,6 @@
 	  
 
 ;; HOW TO USE IT AGAINST something like test.html
-
-(defun file-string (path)
-  (with-open-file (s path)
-    (let* ((len (file-length s))
-           (data (make-string len)))
-      (values data (read-sequence data s)))))
-
 
 (defparameter *test-data* (file-string "test.html"))
 
