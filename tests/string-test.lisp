@@ -1,7 +1,6 @@
-(use-package :webe)
 ;; HOW TO USE IT AGAINST something like test.html
 
-(defparameter *test-data* (file-string "/home/juan/proyectos/web-extractor/test.html"))
+(defparameter *test-data* (webe::file-string "/home/juan/proyectos/web-extractor/tests/test.html"))
 
 (def-web-extractor match-detail
     ((against :finder #'(lambda (html-str) nil))))

@@ -6,7 +6,10 @@
   :licence "MIT License"
   :depends-on (:drakma :cl-ppcre :cl-libxml2)
   :components ((:file "packages")
-               (:file "web-extractor") ))
+	       (:file "utils"
+		      :depends-on ("packages"))
+               (:file "web-extractor"
+		      :depends-on ("packages" "utils"))))
 
 
 
