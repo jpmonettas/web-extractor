@@ -3,9 +3,9 @@
   (:documentation "Main package for web-extractor.")
   (:nicknames :webe)
   (:export
-   "regexp-finder"
-   "xpath-splitter"
-   "def-web-extractor"
-   "extract"))
+   #:regexp-finder
+   #:xpath-splitter
+   #:def-web-extractor
+   #:extract))
 
 

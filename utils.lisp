@@ -26,3 +26,14 @@
 
 (defun get-string-from-url (url)
   (drakma:http-request url :user-agent :explorer))
+
+(defun html2xhtml (file &key (if-exists :error))
+    (with-open-file (out (make-pathname :type "xml" :defaults file)
+			 :element-type '(unsigned-byte 8)
+			 :if-exists if-exists
+			 :direction :output)
+      (chtml:parse (pathname file)
+		   (cxml:make-octet-stream-sink out))))
+
+(defun html2xhtml (html)
+      (chtml:parse html (cxml:make-string-sink)))

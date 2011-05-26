@@ -1,6 +1,6 @@
 ;; HOW TO USE IT AGAINST something like test.html
 
-(defparameter *test-data* (webe::file-string "/home/juan/proyectos/web-extractor/tests/test.html"))
+(defparameter *test-data* (file-string "/home/juan/MyProjects/web-extractor/tests/test22.html"))
 
 (def-web-extractor match-detail
     ((against :finder #'(lambda (html-str) nil))))
@@ -17,10 +17,11 @@
 	      :splitter (xpath-splitter "/td/table/tr/td/ul/node()"))))
 
 (def-web-extractor page-map
-    ((players :collection player-map 
+    ((players :collection player-map
 	      :splitter (xpath-splitter "/html/body/table/tr/node()"))))
 
-(extract *test-data* page-map)
+(extract :str *test-data* :struct-map page-map)
+
 
 ;; Should return this
 ;;

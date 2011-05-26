@@ -26,7 +26,7 @@
 (defun regexp-splitter (regexp) nil)
 
 (defun xpath-splitter (xpath-expr)
-  (lambda (html-str) 
+  (lambda (html-str)
     (with-parse-document (doc html-str)
       (iter (for node in-xpath-result xpath-expr on doc)
 	    (let ((node-str (remove-nl-tab-spc (serialize node :to-string))))
@@ -36,32 +36,39 @@
   `(defparameter ,name 
      (list
       ,@(loop for attr in attributes collect 
-	     (cond ((get-key :collection attr)
+	     (cond ((member :collection attr)
 		    `(list (quote ,(car attr)) 
 			   :collection ,(get-key :collection attr)
 			   :splitter ,(get-key :splitter attr)))
 		   (t 
 		    `(list (quote ,(car attr)) :finder ,(get-key :finder attr))))))))
 
+(defun clean-for-xpath (html)
+  (let ((xhtml (html2xhtml html)))
+    (regex-replace-all "<[Hh][Tt][Mm][Ll].*?>" xhtml "<html>")))
+  
 (defun extract (&key str url struct-map)
   (let ((data (if str 
 		  str
-		  (get-string-from-url url))))
+		  (clean-for-xpath (get-string-from-url url)))))
   (loop for attr in struct-map collect
        (list
 	(car attr)
 	(cond 
-	  ((get-key :follow attr)                            
+	  ((member :follow attr)                            
 	   (extract 
 	    :url (funcall (get-key :finder attr) data)
 	    :struct-map (get-key :follow attr)))
-	  ((get-key :collection attr)                        
-	   (cons :COLLECTION 
-		 (let ((splitted-list (funcall (get-key :splitter attr) data)))
-		   (loop for spl in splitted-list collect
-			(extract
-			 :str spl
-			 :struct-map (get-key :collection attr))))))
+	  ((member :collection attr)                        
+	   (cons :COLLECTION
+		 (let* ((splitted-list (funcall (get-key :splitter attr) data))
+			(struct-map-type (get-key :collection attr)))
+		   (if struct-map-type
+		       (loop for spl in splitted-list collect
+			    (extract
+			     :str spl
+			     :struct-map struct-map-type))
+		       splitted-list))))
 	  (t 
 	   (funcall (get-key :finder attr) data)))))))
 
