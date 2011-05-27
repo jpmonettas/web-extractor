@@ -21,8 +21,11 @@
   (lambda (html-str)
     (register-groups-bind (first) (regexp html-str) first)))
 
-(defun xpath-finder (xpath-expr) nil)
-
+(defun xpath-finder (xpath-expr) 
+  (lambda (html-str)
+    (with-parse-document (doc html-str)
+      (xpath:find-string doc xpath-expr))))
+  
 (defun regexp-splitter (regexp) nil)
 
 (defun xpath-splitter (xpath-expr)
@@ -32,46 +35,64 @@
 	    (let ((node-str (remove-nl-tab-spc (serialize node :to-string))))
 	      (when (> (length node-str) 0) (collect node-str)))))))
 
-(defmacro def-web-extractor (name attributes) 
-  `(defparameter ,name 
-     (list
-      ,@(loop for attr in attributes collect 
-	     (cond ((member :collection attr)
-		    `(list (quote ,(car attr)) 
-			   :collection ,(get-key :collection attr)
-			   :splitter ,(get-key :splitter attr)))
-		   (t 
-		    `(list (quote ,(car attr)) :finder ,(get-key :finder attr))))))))
-
 (defun clean-for-xpath (html)
   (let ((xhtml (html2xhtml html)))
     (regex-replace-all "<[Hh][Tt][Mm][Ll].*?>" xhtml "<html>")))
+
+(defmacro def-web-extractor (name attributes) 
+  `(defparameter ,name 
+     (list
+      ,@(loop for attr in attributes collect
+	     (let* ((name (car attr))
+		    (properties (cdr attr))
+		    (finder (getf properties :finder))
+		    (follow (getf properties :follow))
+		    (collection (getf properties :collection))
+		    (splitter (getf properties :splitter)))
+	       (cond
+		 ((member :follow properties)
+		  `(list (quote ,name)
+			 :finder ,finder
+			 :follow ,follow))
+		 ((member :collection properties)
+		  `(list (quote ,name) 
+			 :collection ,collection
+			 :splitter ,splitter))
+		 (t 
+		  `(list (quote ,name)
+			 :finder ,finder))))))))
+
   
 (defun extract (&key str url struct-map)
   (let ((data (if str 
 		  str
 		  (clean-for-xpath (get-string-from-url url)))))
   (loop for attr in struct-map collect
-       (list
-	(car attr)
-	(cond 
-	  ((member :follow attr)                            
-	   (extract 
-	    :url (funcall (get-key :finder attr) data)
-	    :struct-map (get-key :follow attr)))
-	  ((member :collection attr)                        
-	   (cons :COLLECTION
-		 (let* ((splitted-list (funcall (get-key :splitter attr) data))
-			(struct-map-type (get-key :collection attr)))
-		   (if struct-map-type
-		       (loop for spl in splitted-list collect
-			    (extract
-			     :str spl
-			     :struct-map struct-map-type))
-		       splitted-list))))
-	  (t 
-	   (funcall (get-key :finder attr) data)))))))
-
+       (let* ((name (car attr))
+	      (properties (cdr attr))
+	      (finder (getf properties :finder))
+	      (follow-type (getf properties :follow))
+	      (col-item-type (getf properties :collection))
+	      (splitter (getf properties :splitter)))
+	 (list
+	  name
+	  (cond 
+	    ((member :follow properties)                            
+	     (extract 
+	      :url (funcall finder data)
+	      :struct-map follow-type))
+	    ((member :collection properties)                        
+	     (cons :COLLECTION
+		   (let ((splitted-list (funcall splitter data)))
+		     (if col-item-type
+			 (loop for item in splitted-list collect
+			      (extract
+			       :str item
+			       :struct-map col-item-type))
+			 splitted-list))))
+	    (t 
+	     (funcall finder data))))))))
+  
 
 
 ;; (expose players-web-ex)

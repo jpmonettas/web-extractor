@@ -1,11 +1,5 @@
 (in-package :web-extractor)
 
-(defun get-key (symbol list)
-  (when (and list (listp list))
-    (if (eq (car list) symbol)
-	(car (cdr list))
-	(get-key symbol (cdr list)))))
-
 (defun file-string (path)
   (with-open-file (s path)
     (let* ((len (file-length s))
