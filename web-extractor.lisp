@@ -2,14 +2,25 @@
 
 (defun regexp-finder (regexp)
   (lambda (html-str)
-    (register-groups-bind (first) (regexp html-str) first)))
+    (register-groups-bind (first) ((create-scanner regexp :single-line-mode t) html-str) first)))
 
 (defun xpath-finder (xpath-expr) 
   (lambda (html-str)
     (with-parse-document (doc html-str)
-      (xpath:find-string doc xpath-expr))))
-  
-(defun regexp-splitter (regexp) nil)
+      (serialize 
+       (xpath:find-single-node doc xpath-expr)
+       :to-string))))
+
+(defun regexp-splitter (regexp)
+  (lambda (html-str)
+    (let ((collection nil))
+      (do-matches-as-strings (item (create-scanner regexp :single-line-mode t) html-str)
+	(when (> (length (remove-nl-tab-spc item)) 0)
+	  (push 
+	   (funcall (regexp-finder regexp) item)  
+	    collection)))
+      (reverse collection))))
+      
 
 (defun xpath-splitter (xpath-expr)
   (lambda (html-str)
