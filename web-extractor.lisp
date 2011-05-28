@@ -1,22 +1,5 @@
 (in-package :web-extractor)
 
-
-;;;; SOME THIRD PARTY LIBS TESTS    
-
-;; (pprint
-;;  (parse-html 
-;;   (http-request "http://www.google.com")))
-
-;; (define-sanitize-mode links
-;;     :elements (:a) 
-;;     :attributes ((:a :href)))
-
-;; (setq *atp-ranking-links* (parse-html (clean *atp-ranking* links)))
-
-
-
-;; THE REAL THING
-
 (defun regexp-finder (regexp)
   (lambda (html-str)
     (register-groups-bind (first) (regexp html-str) first)))
@@ -46,17 +29,17 @@
 	     (let* ((name (car attr))
 		    (properties (cdr attr))
 		    (finder (getf properties :finder))
-		    (follow (getf properties :follow))
-		    (collection (getf properties :collection))
+		    (follow-type (getf properties :follow))
+		    (col-item-type (getf properties :collection))
 		    (splitter (getf properties :splitter)))
 	       (cond
 		 ((member :follow properties)
 		  `(list (quote ,name)
 			 :finder ,finder
-			 :follow ,follow))
+			 :follow ,follow-type))
 		 ((member :collection properties)
 		  `(list (quote ,name) 
-			 :collection ,collection
+			 :collection ,col-item-type
 			 :splitter ,splitter))
 		 (t 
 		  `(list (quote ,name)
@@ -73,36 +56,60 @@
 	      (finder (getf properties :finder))
 	      (follow-type (getf properties :follow))
 	      (col-item-type (getf properties :collection))
+	      (col-limit (if (getf properties :limit) (getf properties :limit) 10))
 	      (splitter (getf properties :splitter)))
 	 (list
 	  name
 	  (cond 
-	    ((member :follow properties)                            
-	     (extract 
-	      :url (funcall finder data)
-	      :struct-map follow-type))
+	    ((member :follow properties)
+	     (let ((follow-url (merge-uris 
+				(parse-uri (funcall finder data))
+				(parse-uri url))))
+	       (extract 
+		:url (render-uri follow-url nil)
+		:struct-map follow-type)))
 	    ((member :collection properties)                        
 	     (cons :COLLECTION
 		   (let ((splitted-list (funcall splitter data)))
 		     (if col-item-type
-			 (loop for item in splitted-list collect
+			 (loop 
+			    for item in splitted-list 
+			    for i from 1 to col-limit
+			    collect
 			      (extract
 			       :str item
+			       :url url
 			       :struct-map col-item-type))
 			 splitted-list))))
 	    (t 
 	     (funcall finder data))))))))
   
 
-
-;; (expose players-web-ex)
-
-;; You should GET the data via HTTP using REST like services :
+;;;; SOME IDEAS TO IMPLEMENT
 ;;
-;; http://localhost/player
-;; http://localhost/player/1
-;; http://localhost/player/1/age
-;; http://localhost/player/1/matches/
-;; http://localhost/player/1/matches/1
-;; http://localhost/player/1/matches/1/date
-;; http://localhost/player/1/matches/1/details/against
+;; - Remove clean-for-xpath, maybe it's better to add <root>...</root> always
+;; - Implement :find-pager COLLECTIONS
+;; - Implement regexp-splitter
+;; - Implement :union-follow
+;;
+;;;; SOME IDEAS TO INVESTIGATE OR THINK ABOUT
+;;
+;; - filters or preprocessors maybe based on sanitize::clean
+;; - exporting data, REST? RDBMS?
+
+
+
+
+;;;; SOME THIRD PARTY LIBS TESTS    
+
+;; (pprint
+;;  (parse-html 
+;;   (http-request "http://www.google.com")))
+
+;; (define-sanitize-mode links
+;;     :elements (:a) 
+;;     :attributes ((:a :href)))
+
+;; (setq *atp-ranking-links* (parse-html (clean *atp-ranking* links)))
+
+

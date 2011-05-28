@@ -1,5 +1,9 @@
 (in-package :web-extractor)
 
+(defun compose (f1 f2)
+  (lambda (x)
+    (funcall f2 (funcall f1 x))))
+
 (defun file-string (path)
   (with-open-file (s path)
     (let* ((len (file-length s))
