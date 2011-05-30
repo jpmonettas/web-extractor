@@ -8,7 +8,7 @@
     ((number :finder (xpath-finder "/tr/td[1]"))
      (name :finder (xpath-finder "/tr/td[3]/a"))
      (followers :finder (xpath-finder "/tr/td[6]"))
-     (details :follow twitaholic-details-map :finder (xpath-finder "/tr/td[3]/a/@href")))) 
+     (details :follow twitaholic-details-map :finder (xpath-finder "/tr/td[3]/a/@href"))))
      
 (def-web-extractor twitaholics-map
     ((twitaholics :collection twitaholic-map
