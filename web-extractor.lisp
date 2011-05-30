@@ -4,12 +4,13 @@
   (lambda (html-str)
     (register-groups-bind (first) ((create-scanner regexp :single-line-mode t) html-str) first)))
 
-(defun xpath-finder (xpath-expr) 
+(defun xpath-finder (xpath-expr &key (add-root nil) (only-text 't)) 
   (lambda (html-str)
-    (with-parse-document (doc html-str)
-      (serialize 
-       (xpath:find-single-node doc xpath-expr)
-       :to-string))))
+    (let ((clean-xhtml (if add-root (add-root html-str) html-str)))
+      (with-parse-document (doc clean-xhtml)
+	(if only-text
+	    (xpath:find-string doc xpath-expr)
+	    (serialize (xpath:find-single-node doc xpath-expr) :to-string))))))
 
 (defun regexp-splitter (regexp)
   (lambda (html-str)
@@ -22,16 +23,28 @@
       (reverse collection))))
       
 
-(defun xpath-splitter (xpath-expr)
+(defun xpath-splitter (xpath-expr &key (add-root nil))
   (lambda (html-str)
-    (with-parse-document (doc html-str)
-      (iter (for node in-xpath-result xpath-expr on doc)
-	    (let ((node-str (remove-nl-tab-spc (serialize node :to-string))))
-	      (when (> (length node-str) 0) (collect node-str)))))))
+    (let ((clean-xhtml (if add-root (add-root html-str) html-str)))
+      (with-parse-document (doc clean-xhtml)
+	(iter (for node in-xpath-result xpath-expr on doc)
+	      (let ((node-str (remove-nl-tab-spc (serialize node :to-string))))
+		(when (> (length node-str) 0) (collect node-str))))))))
+
+(defmacro param-pager (params &key init inc)
+  `(let ((cont ,init))
+     (lambda (url html-data)
+       (prog1
+	   (concatenate 'string url (regex-replace-all "{}" ,params (write-to-string cont)))
+	 (incf cont ,inc)))))
+  
+(defun add-root (xml)
+  (concatenate 'string "<root>" xml "</root>"))
 
 (defun clean-for-xpath (html)
   (let ((xhtml (html2xhtml html)))
     (regex-replace-all "<[Hh][Tt][Mm][Ll].*?>" xhtml "<html>")))
+
 
 (defmacro def-web-extractor (name attributes) 
   `(defparameter ,name 
@@ -42,6 +55,8 @@
 		    (finder (getf properties :finder))
 		    (follow-type (getf properties :follow))
 		    (col-item-type (getf properties :collection))
+		    (next-page-gen (getf properties :next-page-gen))
+		    (col-limit (if (getf properties :limit) (getf properties :limit) 10))
 		    (splitter (getf properties :splitter)))
 	       (cond
 		 ((member :follow properties)
@@ -51,7 +66,9 @@
 		 ((member :collection properties)
 		  `(list (quote ,name) 
 			 :collection ,col-item-type
-			 :splitter ,splitter))
+			 :splitter ,splitter
+			 :next-page-gen ,next-page-gen
+			 :limit ,col-limit))
 		 (t 
 		  `(list (quote ,name)
 			 :finder ,finder))))))))
@@ -67,7 +84,8 @@
 	      (finder (getf properties :finder))
 	      (follow-type (getf properties :follow))
 	      (col-item-type (getf properties :collection))
-	      (col-limit (if (getf properties :limit) (getf properties :limit) 10))
+	      (next-page-gen (getf properties :next-page-gen))
+	      (col-limit (getf properties :limit))
 	      (splitter (getf properties :splitter)))
 	 (list
 	  name
@@ -81,20 +99,31 @@
 		:struct-map follow-type)))
 	    ((member :collection properties)                        
 	     (cons :COLLECTION
-		   (let ((splitted-list (funcall splitter data)))
-		     (if col-item-type
-			 (loop 
-			    for item in splitted-list 
-			    for i from 1 to col-limit
-			    collect
-			      (extract
-			       :str item
-			       :url url
-			       :struct-map col-item-type))
-			 splitted-list))))
+		   (do* ((counter 1)
+			 (next-page-url nil (when (and (< counter col-limit) next-page-gen) 
+					      (funcall next-page-gen url data)))
+			 (next-page-data nil (when next-page-url 
+					       (clean-for-xpath (get-string-from-url next-page-url))))
+			 (splitted-list (funcall splitter data) (when next-page-data 
+								  (funcall splitter next-page-data)))  
+			 (collection nil))
+			((or (eq splitted-list nil) (>= counter col-limit)) collection)
+		     (setq collection (append collection (loop 
+							    for item in splitted-list 
+							    for i from counter to col-limit
+							    collect
+							      (if col-item-type
+								  (extract
+								   :str item
+								   :url url
+								   :struct-map col-item-type)
+								  item)
+							    do
+							      (incf counter)))))))
 	    (t 
 	     (funcall finder data))))))))
-  
+
+
 
 ;;;; SOME IDEAS TO IMPLEMENT
 ;;
