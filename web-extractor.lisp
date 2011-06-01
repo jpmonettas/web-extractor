@@ -2,9 +2,11 @@
 
 ;; Some helpers for the :finder properties 
 
-(defun regexp-finder (regexp)
+(defun regexp-finder (regexp &key (debug nil))
   (lambda (html-str)
-    (register-groups-bind (first) ((create-scanner regexp :single-line-mode t) html-str) first)))
+    (let ((res (register-groups-bind (first) ((create-scanner regexp :single-line-mode t) html-str) first)))
+      (when debug (print res))
+      res)))
 
 (defun xpath-finder (xpath-expr &key (add-root nil) (only-text 't)) 
   (lambda (html-str)
@@ -27,14 +29,17 @@
       (reverse collection))))
       
 
-(defun xpath-splitter (xpath-expr &key (add-root nil))
+(defun xpath-splitter (xpath-expr &key (add-root nil) (debug nil))
   (lambda (html-str)
-    (let ((clean-xhtml (if add-root (add-root html-str) html-str)))
-      (with-parse-document (doc clean-xhtml)
-	(iter (for node in-xpath-result xpath-expr on doc)
-	      (let ((node-str (remove-nl-tab-spc (serialize node :to-string))))
-		(when (> (length node-str) 0) (collect node-str))))))))
-
+    (let* ((clean-xhtml (if add-root (add-root html-str) html-str))
+	   (debug-patch (when debug (print clean-xhtml)))
+	   (res (with-parse-document (doc clean-xhtml)
+		  (iter (for node in-xpath-result xpath-expr on doc)
+			(let ((node-str (remove-nl-tab-spc (serialize node :to-string))))
+			  (when (> (length node-str) 0) (collect node-str)))))))
+      (when debug (print res))
+      res)))
+  
 ;; Some helpers for the :next-page-gen properties
 
 (defmacro param-pager (params &key init inc)

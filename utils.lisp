@@ -1,8 +1,13 @@
 (in-package :web-extractor)
 
-(defun compose (f1 f2)
-  (lambda (x)
-    (funcall f2 (funcall f1 x))))
+
+(defmacro compose (&rest funcs)
+  `(lambda (init-param)
+     ,(labels ((compose-aux (funcs-list)
+			    (cond ((eq funcs-list nil) nil)
+				  ((= (length funcs-list) 1) `(funcall ,@funcs-list init-param))
+				  (t `(funcall ,(car funcs-list) ,(compose-aux (cdr funcs-list)))))))
+	      (compose-aux (reverse funcs)))))
 
 (defun file-string (path)
   (with-open-file (s path)
