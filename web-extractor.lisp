@@ -1,5 +1,34 @@
 (in-package :web-extractor)
 
+;; Some examples are :
+
+;; (def-web-extractor phone-webe
+;;     ((number :finder phone-finder-func)))
+
+;; (def-web-extractor person-webe
+;;     ((name :finder name-finder-func)
+;;      (age :finder age-finder-func)
+;;      (phones :follow phone-webe :finder phone-link-finder-func)))
+
+;; (def-web-extractor persons-webe
+;;     ((persons :collection person-webe
+;; 		  :splitter persons-splitter-func
+;; 		  :limit 10
+;; 		  :next-page-gen persons-nex-page-gen-func)))
+
+;; To the :finder indicator you should give any function that should recieve 
+;; context HTML data and the returned value will be used as an attribute value.
+
+;; To the :follow indicator you should give a web-extractor that will extract 
+;; the data from the result of following the link returned by the :finder function
+
+;; With the :collection indicator you specify that the attribute will contain a collection
+;; of the web-extractor you put after. Some indicators you can use in a :collection are :
+;; :splitter A function that will recieve context HTML and should return a list of HTML subparts
+;; :limit A number that limits the collection lenght
+;; :next-page-gen A function that should recieve base-url and context HTML and should return
+;;                the next page to visit to continue downloading the collection.
+
 ;; Some helpers for the :finder properties 
 
 (defun regexp-finder (regexp &key (debug nil))
@@ -45,7 +74,7 @@
 (defmacro param-pager (params &key init inc)
   `(let ((cont ,init))
      (lambda (url html-data)
-       (delcare (ignore html-data))
+       (declare (ignore html-data))
        (prog1
 	   (concatenate 'string url (regex-replace-all "\\(\\)" ,params (write-to-string cont)))
 	 (incf cont ,inc)))))
@@ -132,12 +161,7 @@
   (let ((finder (getf properties :finder)))
     (funcall finder data)))
     
-;; This is the main function for scrapping the web normaly based on a base url and
-;; a struct-map defined with def-web-extractor. It also accepts as string as the data
-;; input instead of a url if you call it with the str param.
-;; The output of this function is a list of plist in wich each plist has one of the
-;; struct-map attributes name as the property and as the value will contain the extraction
-;; for that attribute.  
+
 (defun extract (&key str url struct-map)
   (let ((data (if str 
 		  str
@@ -150,7 +174,7 @@
 	    (cond 
 	      ((member :follow properties) (extract-follow url properties data))
 	      ((member :collection properties) (extract-collection url properties data))
-	      (t (extract-simple url properties data))))))))
+	      (t (extract-simple url properties data struct-map))))))))
 
 
 
