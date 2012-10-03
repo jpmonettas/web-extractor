@@ -28,6 +28,7 @@
 			      (or (equal c #\Newline) (equal c #\Tab))) str))) 
 
 (defun get-string-from-url (url)
+  (print (format nil "Making an HTTP request to : ~a" url))
   (drakma:http-request url :user-agent :explorer))
 
 (defun html2xhtml (file &key (if-exists :error))
@@ -40,3 +41,28 @@
 
 (defun html2xhtml (html)
       (chtml:parse html (cxml:make-string-sink)))
+
+
+(defun attribute-p (element)
+  (and (= (length element) 2)
+       (atom (first element))
+       (atom (second element))))
+
+;; This little utility is for grabbing a tree like (A (B "B") (C (D "D"))) and
+;; returnin ("B" "D")
+(defun tree-to-string-list (tree)
+  (cond ((or (eq nil tree) (atom tree)) "")
+	((attribute-p tree) (second tree))
+	(t (let ((result ""))
+	  (loop 
+	     for elem in tree
+	     do (setq result (concatenate 'string result " " (tree-to-string-list elem))))
+	  result))))
+
+(defun store-s-expression-to-file (s file-name)
+  (with-open-file (str file-name :direction :output)
+    (write s :stream str)))
+
+(defun load-s-expression-from-file (file-name)
+  (with-open-file (str file-name :direction :input)
+    (read str)))

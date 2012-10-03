@@ -15,16 +15,14 @@
 (def-web-extractor twitaholics-map
     ((twitaholics :collection twitaholic-map
 		  :splitter (xpath-splitter "/html/body/div/div[4]/div[2]/table/tbody/tr[position()>1]")
-		  :limit 10)))
+		  :limit 200)))
 
-(setq col (extract :url "http://twitaholic.com/" :struct-map twitaholics-map))
+(setq ta-col1 (extract :url "http://twitaholic.com/" :struct-map twitaholics-map))
 
-(defun attribute-p (element)
-  (and (= (length element) 2)
-       (atom (first element))
-       (atom (second element))))
 
-(defun tree-to-plain-list (tree)
-  (
+;; Transformaciones de col a una lista de registros
+(setq col2 (cdr (car (cdr (car col)))))
+(loop for e in col2 collect (tree-to-plain-list e))
+
 
 

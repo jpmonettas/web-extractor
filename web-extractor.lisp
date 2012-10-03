@@ -161,11 +161,13 @@
   (let ((finder (getf properties :finder)))
     (funcall finder data)))
     
+(defvar *page-cache* (make-hash-table))
 
 (defun extract (&key str url struct-map)
-  (let ((data (if str 
-		  str
-		  (clean-for-xpath (get-string-from-url url)))))
+  (let ((data (cond ((not (eq str nil)) str) ;; If we have an string, lets use that as data
+		    (t (or ;; If don't 
+			(gethash url *page-cache*) ;; Let's try to retrieve that from our cache based on URL
+			(setf (gethash url *page-cache*) (clean-for-xpath (get-string-from-url url)))))))) ;; OR go to the site
     (loop for attr in struct-map collect
 	 (let* ((name (car attr))
 		(properties (cdr attr)))
