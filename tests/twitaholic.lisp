@@ -17,9 +17,7 @@
 		  :splitter (xpath-splitter "/html/body/div/div[4]/div[2]/table/tbody/tr[position()>1]")
 		  :limit 200)))
 
-(setq ta-col1 (extract :url "http://twitaholic.com/" :struct-map twitaholics-map))
-
-
+(setq ta-col5 (extract :url "http://twitaholic.com/" :struct-map twitaholics-map))
 ;; Transformaciones de col a una lista de registros
 (setq col2 (cdr (car (cdr (car col)))))
 (loop for e in col2 collect (tree-to-plain-list e))

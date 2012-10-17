@@ -44,20 +44,22 @@
 
 
 (defun attribute-p (element)
-  (and (= (length element) 2)
-       (atom (first element))
-       (atom (second element))))
+  (and
+   (listp element)
+   (= (length element) 2)
+   (atom (first element))
+   (atom (second element))))
 
 ;; This little utility is for grabbing a tree like (A (B "B") (C (D "D"))) and
-;; returnin ("B" "D")
-(defun tree-to-string-list (tree)
-  (cond ((or (eq nil tree) (atom tree)) "")
-	((attribute-p tree) (second tree))
-	(t (let ((result ""))
+;; returnin (B "B" D "D")
+(defun tree-to-property-list (tree)
+  (cond ((or (eq nil tree) (atom tree)) nil)
+	((attribute-p tree) tree)
+	(t (let ((result nil))
 	  (loop 
-	     for elem in tree
-	     do (setq result (concatenate 'string result " " (tree-to-string-list elem))))
-	  result))))
+	     for branch-elem in tree
+	     do (loop for elem in (tree-to-property-list branch-elem) do (push elem result)))
+	  (reverse result)))))
 
 (defun store-s-expression-to-file (s file-name)
   (with-open-file (str file-name :direction :output)
@@ -66,3 +68,49 @@
 (defun load-s-expression-from-file (file-name)
   (with-open-file (str file-name :direction :input)
     (read str)))
+
+(defun get-property-value (property-name tree)
+  (cond ((or (eq tree nil) (atom tree)) nil)
+	((and 
+	  (listp tree)
+	  (= (length tree) 2)
+	  (eq (first tree) (intern property-name)))
+	 (second tree))
+	(t 
+	 (let ((result nil) )
+	   (loop for n in tree do
+		(let ((res (get-property-value property-name n)))
+		  (if (listp res)
+		      (loop for r in res do (push r result))
+		      (push res result))))
+	   result))))
+
+(defun pprint-assoc-list (alist hide-nils &optional (tab-level 0))
+  (flet ((generate-tabs (n) ;; Just returns a string with N tabs contatenated
+	   (do ((i 0 (1+ i))
+		(result ""))
+	       ((= i n) result)
+	     (setq result (concatenate 'string (format nil "~T") result)))))
+    (if (null alist)
+	nil
+	(let ((key (car alist))
+	      (value (cdr alist)))
+	  (cond 
+	    ((and (atom key) (atom value)) ;; If it has the form (atom-key . atom-value)
+	     (if (not (and hide-nils (null value)))
+		 (print (concatenate 'string 
+				     (generate-tabs tab-level) 
+				     (format nil "(~a . ~a)" 
+					     key
+					     (if (stringp value)
+						 (if (<= (length value) 50)
+						     value
+						     (concatenate 'string (subseq value 0 50) "..."))
+						 value))))))
+	    ((and (atom key) (listp value)) ;; If it has the form (atom-key . list-value)
+	     (print (concatenate 'string (generate-tabs tab-level) (format nil "(~a . " key)))
+	     (loop for e in value do
+		  (pprint-assoc-list e hide-nils (+ 2 tab-level)))
+	     (print (concatenate 'string (generate-tabs tab-level) ")")))
+	  (t (loop for e in alist do ;; Normally if it has the form (list-value list-value)
+		  (pprint-assoc-list e hide-nils (+ 2 tab-level)))))))))

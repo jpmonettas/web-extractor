@@ -1,5 +1,7 @@
 (in-package :web-extractor)
 
+(declaim (optimize (debug 3)))
+
 ;; Some examples are :
 
 ;; (def-web-extractor phone-webe
@@ -32,10 +34,18 @@
 ;; Some helpers for the :finder properties 
 
 (defun regexp-finder (regexp &key (debug nil))
+	(declare (optimize
+		(debug 3)
+		(speed 0)
+		(space 0)
+		(compilation-speed 0)
+		(safety 3)))
   (lambda (html-str)
-    (let ((res (register-groups-bind (first) ((create-scanner regexp :single-line-mode t) html-str) first)))
-      (when debug (print res))
+    (let ((res (register-groups-bind (first) ((create-scanner regexp :single-line-mode t)
+					      html-str) first)))
+      (when debug (print (format nil "regexp-finder regexp : ~a~% OUTPUT : ~a" regexp res)))
       res)))
+
 
 (defun xpath-finder (xpath-expr &key (add-root nil) (only-text 't)) 
   (lambda (html-str)
@@ -61,12 +71,13 @@
 (defun xpath-splitter (xpath-expr &key (add-root nil) (debug nil))
   (lambda (html-str)
     (let* ((clean-xhtml (if add-root (add-root html-str) html-str))
-	   (debug-patch (when debug (print clean-xhtml)))
-	   (res (with-parse-document (doc clean-xhtml)
+	   (debug-patch (when debug (print (format nil "xpath-splitter INPUT : ~%~a" clean-xhtml))))
+	   (res (when (not (equal clean-xhtml nil)) 
+		  (with-parse-document (doc clean-xhtml)
 		  (iter (for node in-xpath-result xpath-expr on doc)
 			(let ((node-str (remove-nl-tab-spc (serialize node :to-string))))
-			  (when (> (length node-str) 0) (collect node-str)))))))
-      (when debug (print res))
+			  (when (> (length node-str) 0) (collect node-str))))))))
+      (when debug (print (format nil "xpath-splitter OUTPUT : ~%~a" res)))
       res)))
   
 ;; Some helpers for the :next-page-gen properties
@@ -97,6 +108,7 @@
 	     (let* ((name (car attr))
 		    (properties (cdr attr))
 		    (finder (getf properties :finder))
+		    (try-cast-type (getf properties :try-cast-type))
 		    (follow-type (getf properties :follow))
 		    (col-item-type (getf properties :collection))
 		    (next-page-gen (getf properties :next-page-gen))
@@ -115,23 +127,31 @@
 			 :limit ,col-limit))
 		 (t 
 		  `(list (quote ,name)
-			 :finder ,finder))))))))
+			 :finder ,finder
+			 :try-cast-type (quote ,(or try-cast-type 'STRING))))))))))
 
 (defun extract-collection (base-url properties data)
   (let* ((col-item-type (getf properties :collection))
 	 (next-page-gen (getf properties :next-page-gen))
 	 (col-limit (getf properties :limit))
-	 (splitter (getf properties :splitter)))
-    (cons :COLLECTION
+	 (splitter (getf properties :splitter))
+	 (skip-follow-p (getf properties :skip-follow-p)))
 	  (do* ((counter 1)
-		(next-page-url nil (when (and (< counter col-limit) next-page-gen) 
+		(next-page-url nil (when (and col-limit (< counter col-limit) next-page-gen) 
 				     (funcall next-page-gen base-url data)))
 		(next-page-data nil (when next-page-url 
-				      (clean-for-xpath (get-string-from-url next-page-url))))
+				      (clean-for-xpath
+				       ;; If we have a skip-follow-predicate and it returns true
+				       (if (and skip-follow-p (funcall skip-follow-p next-page-url)) 
+					   "" ;; Don't follow the link, just return empty string
+					   (get-string-from-url next-page-url))))) ;; else go and download
 		(splitted-list (funcall splitter data) (when next-page-data 
 							 (funcall splitter next-page-data)))  
-		(collection nil))
-	       ((or (eq splitted-list nil) (>= counter col-limit)) collection)
+		(collection '()))
+	       ((or ;; Finish condition
+		 (eq splitted-list nil) ;; Or we ran out of elements
+		 (and col-limit (>= counter col-limit))) ;; Or we hit our limit
+		collection)
 	    (setq collection (append collection (loop 
 						   for item in splitted-list 
 						   for i from counter to col-limit
@@ -143,41 +163,50 @@
 							  :struct-map col-item-type)
 							 item)
 						   do
-						     (incf counter))))))))
+						     (incf counter)))))))
   
 (defun extract-follow (base-url properties data)
-  (let* ((finder (getf properties :finder))
+  (let* ((skip-follow-p (getf properties :skip-follow-p))
+	 (finder (getf properties :finder))
 	 (follow-type (getf properties :follow))
 	 (follow-url (render-uri (merge-uris 
 				  (parse-uri (funcall finder data))
 				  (parse-uri base-url)) 
 				 nil)))
-    (extract 
-     :url follow-url
-     :struct-map follow-type)))
+
+    ;; If we have a skip-follow-predicate and it returns true
+    (if (and skip-follow-p (funcall skip-follow-p follow-url)) 
+	"" ;; Don't follow the link, just return empty string
+	(extract  ;; Otherwise go for the link
+	 :url follow-url
+	 :struct-map follow-type))))
 
 (defun extract-simple (base-url properties data struct-map)
   (declare (ignore base-url struct-map))
-  (let ((finder (getf properties :finder)))
-    (funcall finder data)))
+  (let ((finder (getf properties :finder))
+	(try-cast-type (getf properties :try-cast-type)))
+    (cond ((and (eq try-cast-type 'BOOLEAN) (funcall finder data)) t)
+	  ((eq try-cast-type 'NUMBER) (read-from-string (or (funcall finder data) "0")))
+	  (t (funcall finder data)))))
     
-(defvar *page-cache* (make-hash-table))
+(defvar *page-cache* (make-hash-table :test 'equal))
 
-(defun extract (&key str url struct-map)
-  (let ((data (cond ((not (eq str nil)) str) ;; If we have an string, lets use that as data
+(defun extract (&key str url struct-map )
+  (let ((data (cond ((not (equal str nil)) str) ;; If we have an string, lets use that as data
 		    (t (or ;; If don't 
 			(gethash url *page-cache*) ;; Let's try to retrieve that from our cache based on URL
-			(setf (gethash url *page-cache*) (clean-for-xpath (get-string-from-url url)))))))) ;; OR go to the site
+			  ;; We didn't find anything in our cache
+			    (setf (gethash url *page-cache*) ;; Go for it and store it on the cache
+				  (clean-for-xpath (get-string-from-url url))))))))
     (loop for attr in struct-map collect
 	 (let* ((name (car attr))
 		(properties (cdr attr)))
-	   (list
+	   (cons 
 	    name
 	    (cond 
 	      ((member :follow properties) (extract-follow url properties data))
 	      ((member :collection properties) (extract-collection url properties data))
 	      (t (extract-simple url properties data struct-map))))))))
-
 
 
 ;;;; SOME IDEAS TO IMPLEMENT
