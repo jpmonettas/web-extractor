@@ -27,9 +27,18 @@
 	       (remove-if #'(lambda (c) 
 			      (or (equal c #\Newline) (equal c #\Tab))) str))) 
 
-(defun get-string-from-url (url)
-  (print (format nil "Making an HTTP request to : ~a" url))
-  (drakma:http-request url :user-agent :explorer))
+;; (defun pprint-post-parameters (param-list)
+;;   (dolist (p param-list)
+;;     (
+
+
+(Defun get-string-from-url (url &key method post-parameters cookie-jar)
+  (when (not method) (setq method :get))
+  (print (format nil "Making an HTTP ~a to : ~a" method url))
+  (multiple-value-bind (body status) (drakma:http-request url :user-agent :explorer :method method :parameters post-parameters :cookie-jar cookie-jar)
+    (when (and (eq method :post) post-parameters)
+      (print (format nil "Since it's a POST and we have parameters : ~a" post-parameters)))
+    body))
 
 (defun html2xhtml (file &key (if-exists :error))
     (with-open-file (out (make-pathname :type "xml" :defaults file)

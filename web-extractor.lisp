@@ -110,20 +110,29 @@
 		    (finder (getf properties :finder))
 		    (try-cast-type (getf properties :try-cast-type))
 		    (follow-type (getf properties :follow))
+		    (http-method (getf properties :http-method))
+		    (post-parameters-gen (getf properties :post-parameters-gen))
 		    (col-item-type (getf properties :collection))
 		    (next-page-gen (getf properties :next-page-gen))
+		    (skip-follow-p (getf properties :skip-follow-p))
 		    (col-limit (if (getf properties :limit) (getf properties :limit) 10))
 		    (splitter (getf properties :splitter)))
 	       (cond
 		 ((member :follow properties)
 		  `(list (quote ,name)
 			 :finder ,finder
+			 :skip-follow-p ,skip-follow-p
+			 :http-method ,http-method
+			 :post-parameters-gen ,post-parameters-gen
 			 :follow ,follow-type))
 		 ((member :collection properties)
 		  `(list (quote ,name) 
 			 :collection ,col-item-type
 			 :splitter ,splitter
 			 :next-page-gen ,next-page-gen
+			 :http-method ,http-method
+			 :post-parameters-gen ,post-parameters-gen
+			 :skip-follow-p ,skip-follow-p
 			 :limit ,col-limit))
 		 (t 
 		  `(list (quote ,name)
@@ -133,20 +142,23 @@
 (defun extract-collection (base-url properties data)
   (let* ((col-item-type (getf properties :collection))
 	 (next-page-gen (getf properties :next-page-gen))
+	 (http-method (getf properties :http-method))
+	 (post-parameters-gen (getf properties :post-parameters-gen))
 	 (col-limit (getf properties :limit))
 	 (splitter (getf properties :splitter))
 	 (skip-follow-p (getf properties :skip-follow-p)))
 	  (do* ((counter 1)
 		(next-page-url nil (when (and col-limit (< counter col-limit) next-page-gen) 
 				     (funcall next-page-gen base-url data)))
+		(next-page-post-params nil (when post-parameters-gen (funcall post-parameters-gen data)))
 		(next-page-data nil (when next-page-url 
 				      (clean-for-xpath
 				       ;; If we have a skip-follow-predicate and it returns true
 				       (if (and skip-follow-p (funcall skip-follow-p next-page-url)) 
 					   "" ;; Don't follow the link, just return empty string
-					   (get-string-from-url next-page-url))))) ;; else go and download
+					   (get-string-from-url next-page-url :method http-method :post-parameters next-page-post-params))))) ;; else go and download
 		(splitted-list (funcall splitter data) (when next-page-data 
-							 (funcall splitter next-page-data)))  
+							 (funcall splitter next-page-data)))
 		(collection '()))
 	       ((or ;; Finish condition
 		 (eq splitted-list nil) ;; Or we ran out of elements
@@ -172,14 +184,18 @@
 	 (follow-url (render-uri (merge-uris 
 				  (parse-uri (funcall finder data))
 				  (parse-uri base-url)) 
-				 nil)))
+				 nil))
+	 (http-method (getf properties :http-method))
+	 (post-parameters-gen (getf properties :post-parameters-gen))
+	 (post-parameters (when post-parameters-gen (funcall post-parameters-gen data))))  
+
 
     ;; If we have a skip-follow-predicate and it returns true
     (if (and skip-follow-p (funcall skip-follow-p follow-url)) 
 	"" ;; Don't follow the link, just return empty string
 	(extract  ;; Otherwise go for the link
 	 :url follow-url
-	 :struct-map follow-type))))
+	 :struct-map follow-type :http-method http-method :post-parameters post-parameters))))
 
 (defun extract-simple (base-url properties data struct-map)
   (declare (ignore base-url struct-map))
@@ -191,13 +207,13 @@
     
 (defvar *page-cache* (make-hash-table :test 'equal))
 
-(defun extract (&key str url struct-map )
-  (let ((data (cond ((not (equal str nil)) str) ;; If we have an string, lets use that as data
+(defun extract (&key str url struct-map http-method post-parameters)
+  (let* ((data (cond ((not (equal str nil)) str) ;; If we have an string, lets use that as data
 		    (t (or ;; If don't 
 			(gethash url *page-cache*) ;; Let's try to retrieve that from our cache based on URL
 			  ;; We didn't find anything in our cache
 			    (setf (gethash url *page-cache*) ;; Go for it and store it on the cache
-				  (clean-for-xpath (get-string-from-url url))))))))
+				  (clean-for-xpath (get-string-from-url url :method http-method :post-parameters post-parameters))))))))
     (loop for attr in struct-map collect
 	 (let* ((name (car attr))
 		(properties (cdr attr)))
@@ -231,5 +247,3 @@
 ;;     :attributes ((:a :href)))
 
 ;; (setq *atp-ranking-links* (parse-html (clean *atp-ranking* links)))
-
-
