@@ -103,41 +103,41 @@
 
 (defmacro def-web-extractor (name attributes) 
   `(defparameter ,name 
-     (list
-      ,@(loop for attr in attributes collect
-	     (let* ((name (car attr))
-		    (properties (cdr attr))
-		    (finder (getf properties :finder))
-		    (try-cast-type (getf properties :try-cast-type))
-		    (follow-type (getf properties :follow))
-		    (http-method (getf properties :http-method))
-		    (post-parameters-gen (getf properties :post-parameters-gen))
-		    (col-item-type (getf properties :collection))
-		    (next-page-gen (getf properties :next-page-gen))
-		    (skip-follow-p (getf properties :skip-follow-p))
-		    (col-limit (if (getf properties :limit) (getf properties :limit) 10))
-		    (splitter (getf properties :splitter)))
-	       (cond
-		 ((member :follow properties)
-		  `(list (quote ,name)
-			 :finder ,finder
-			 :skip-follow-p ,skip-follow-p
-			 :http-method ,http-method
-			 :post-parameters-gen ,post-parameters-gen
-			 :follow ,follow-type))
-		 ((member :collection properties)
-		  `(list (quote ,name) 
-			 :collection ,col-item-type
-			 :splitter ,splitter
-			 :next-page-gen ,next-page-gen
-			 :http-method ,http-method
-			 :post-parameters-gen ,post-parameters-gen
-			 :skip-follow-p ,skip-follow-p
-			 :limit ,col-limit))
-		 (t 
-		  `(list (quote ,name)
-			 :finder ,finder
-			 :try-cast-type (quote ,(or try-cast-type 'STRING))))))))))
+      (list
+       ,@(loop for attr in attributes collect
+	      (let* ((name (car attr))
+		     (properties (cdr attr))
+		     (finder (getf properties :finder))
+		     (try-cast-type (getf properties :try-cast-type))
+		     (follow-type (getf properties :follow))
+		     (http-method (getf properties :http-method))
+		     (post-parameters-gen (getf properties :post-parameters-gen))
+		     (col-item-type (getf properties :collection))
+		     (next-page-gen (getf properties :next-page-gen))
+		     (skip-follow-p (getf properties :skip-follow-p))
+		     (col-limit (if (getf properties :limit) (getf properties :limit) 10))
+		     (splitter (getf properties :splitter)))
+		(cond
+		  ((member :follow properties)
+		   `(list (quote ,name)
+			  :finder ,finder
+			  :skip-follow-p ,skip-follow-p
+			  :http-method ,http-method
+			  :post-parameters-gen ,post-parameters-gen
+			  :follow ,follow-type))
+		  ((member :collection properties)
+		   `(list (quote ,name) 
+			  :collection ,col-item-type
+			  :splitter ,splitter
+			  :next-page-gen ,next-page-gen
+			  :http-method ,http-method
+			  :post-parameters-gen ,post-parameters-gen
+			  :skip-follow-p ,skip-follow-p
+			  :limit ,col-limit))
+		  (t 
+		   `(list (quote ,name)
+			  :finder ,finder
+			  :try-cast-type (quote ,(or try-cast-type 'STRING))))))))))
 
 (defun extract-collection (base-url properties data)
   (let* ((col-item-type (getf properties :collection))
@@ -203,7 +203,7 @@
 	(try-cast-type (getf properties :try-cast-type)))
     (cond ((and (eq try-cast-type 'BOOLEAN) (funcall finder data)) t)
 	  ((eq try-cast-type 'NUMBER) (read-from-string (or (funcall finder data) "0")))
-	  (t (funcall finder data)))))
+	  (t (string-trim " " (funcall finder data))))))
     
 (defvar *page-cache* (make-hash-table :test 'equal))
 
@@ -214,10 +214,10 @@
 			  ;; We didn't find anything in our cache
 			    (setf (gethash url *page-cache*) ;; Go for it and store it on the cache
 				  (clean-for-xpath (get-string-from-url url :method http-method :post-parameters post-parameters))))))))
-    (loop for attr in struct-map collect
+     (loop for attr in struct-map collect
 	 (let* ((name (car attr))
 		(properties (cdr attr)))
-	   (cons 
+	   (cons
 	    name
 	    (cond 
 	      ((member :follow properties) (extract-follow url properties data))

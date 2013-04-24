@@ -27,12 +27,35 @@
 	       (remove-if #'(lambda (c) 
 			      (or (equal c #\Newline) (equal c #\Tab))) str))) 
 
-;; (defun pprint-post-parameters (param-list)
-;;   (dolist (p param-list)
-;;     (
+(defun collect-items (struc pred)
+  "Givean a structure like the returned by extract and a predicate, collect and return
+   all the assoc elements where the predicate returns T"
+  (declare (optimize (debug 3)))
+    (cond ((eq struc nil) nil)
+	  ((atom struc) nil)
+	  ((consp struc)
+	   (if (funcall pred struc)
+	       (list struc)
+	       (if (listp (cdr struc))
+		   (let ((founds '()))
+		     (loop for attr in struc do
+			  (setq founds (append (collect-items attr pred) founds)))
+		     founds)
+		   nil)))))
+
+ 
+
+(defun with-direct-attribute-value (attr pred)
+  "Returns a function that applies over the value of a given attribute of an assoc object.
+  It's just a helper for creating predicates for collect-items"
+  (lambda (item)
+    (when (consp (cdr item))
+      (and 
+       (assoc attr (cdr item))
+       (funcall pred (cdr (assoc attr (cdr item))))))))
 
 
-(Defun get-string-from-url (url &key method post-parameters cookie-jar)
+(defun get-string-from-url (url &key method post-parameters cookie-jar)
   (when (not method) (setq method :get))
   (print (format nil "Making an HTTP ~a to : ~a" method url))
   (multiple-value-bind (body status) (drakma:http-request url :user-agent :explorer :method method :parameters post-parameters :cookie-jar cookie-jar)

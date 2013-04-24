@@ -4,7 +4,7 @@
   :version "0.01"
   :author "Juan Monetta <jpmonettas@gmail.com>"
   :licence "MIT License"
-  :depends-on (:drakma :puri :cl-ppcre :cl-libxml2 :closure-html :cxml :lisp-unit)
+  :depends-on (:drakma :puri :cl-ppcre :cl-libxml2 :closure-html :cxml :lisp-unit :cl-json :cl-who :hunchentoot)
   :components ((:file "packages")
 	       (:file "utils"
 		      :depends-on ("packages"))
