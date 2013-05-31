@@ -3,7 +3,8 @@ Web Extractor
 
 This is a small DSL written completely in Common Lisp to make a little easier the task of download and structure information from the web.
 
-It gives you a language to create a hierarchy of objects with instructions on how to find the info to fill their fields in a given subcontext.
+It gives you a language to create a hierarchy of objects with instructions on how to find the info to fill their fields in a given subcontext while
+hidding things like fixing wrongly written web pages and stuff like that.
 
 As an example, consider a website like http://twitaholic.com/
 
