@@ -9,8 +9,7 @@ As an example, consider a website like http://twitaholic.com/
 
 It serves web pages like :
 
-<code>
-
+```html
 <html>
 ...
  <body>
@@ -38,12 +37,11 @@ It serves web pages like :
 </table>
 </body>
 </html>
-
-</code>
+```
 
 and clicking on each name link will gives you a detail page like :
 
-<code>
+```html
 <html>
   ...
   <body>
@@ -62,25 +60,23 @@ and clicking on each name link will gives you a detail page like :
        ...
  </div>
  </div>
-
-</code>
+```
 
 Now how to use this language to download all those twitter users details 
 
 For the detail pages you can write something like :
 
-<code>
+```lisp
 (def-web-extractor twitaholic-details-map
     ((join-date :finder (compose 
 			 (xpath-finder "//div[@id='user_details']/ul/li[1]") 
 			 (regexp-finder "(\\d{4}-\\d{2}-\\d{2})")))
      (website :finder (xpath-finder "//div[@id='user_info']/a[2]/@href"))))
-
-</code>
+```
 
 For the root page you can parse the first 200 in the collection as :
 
-<code>
+```lisp
 (def-web-extractor twitaholic-map
     ((number :finder (xpath-finder "/tr/td[1]"))
      (name :finder (xpath-finder "/tr/td[3]/a"))
@@ -92,11 +88,13 @@ For the root page you can parse the first 200 in the collection as :
 		  :splitter (xpath-splitter "/html/body/div/div[4]/div[2]/table/tbody/tr[position()>1]")
 		  :limit 200)))
 
-</code>
+```
 
 and then extract all that info in a s-exp or a JSON like format with :
 
+```lisp
 (extract :url "http://twitaholic.com/" :struct-map twitaholics-map)
+```
 
 For more examples look in the tests directory.
 
