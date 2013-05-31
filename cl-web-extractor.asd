@@ -8,12 +8,9 @@
   :components ((:file "packages")
 	       (:file "utils"
 		      :depends-on ("packages"))
+	       (:file "controller"
+		      :depends-on ("packages"))
                (:file "web-extractor"
 		      :depends-on ("packages" "utils"))
 	       (:file "web-extractor-tests"
 		      :depends-on ("packages" "utils" "web-extractor"))))
-
-
-
-
-

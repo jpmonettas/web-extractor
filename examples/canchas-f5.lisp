@@ -43,3 +43,20 @@
 		   'DEPARTAMENTO 
 		 (lambda (v) 
 		   (not (equal v "Montevideo")))))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

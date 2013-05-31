@@ -1,4 +1,4 @@
-(in-package :web-extractor)
+(in-package :extractor)
 
 (declaim (optimize (debug 3)))
 

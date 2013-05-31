@@ -1,4 +1,13 @@
-(in-package :web-extractor)
+(in-package :extractor)
+
+(defun eval-code-in-extractor (code-string)
+  	(declare (optimize (debug 3)))
+  (let ((code-stream (make-string-input-stream code-string)))
+    (when code-stream
+      (loop for form = (read code-stream t 'eof) do
+	   (eval form)
+	   until (eq form 'eof))
+      (close code-stream))))
 
 
 (defmacro compose (&rest funcs)

@@ -1,4 +1,4 @@
-(in-package :web-extractor)
+(in-package :extractor)
 
 (define-test attribute-p-test
   (assert-true (attribute-p '(test "a")))
