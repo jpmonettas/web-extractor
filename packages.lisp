@@ -1,5 +1,5 @@
 (defpackage :web-extractor
-  (:use :cl :drakma :cl-ppcre :xtree :iter :puri :lisp-unit :cl-json :cl-who :hunchentoot)
+  (:use :cl :drakma :cl-ppcre :xtree :iter :puri :lisp-unit :cl-who)
   (:documentation "Main package for web-extractor.")
   (:nicknames :webe)
   (:export

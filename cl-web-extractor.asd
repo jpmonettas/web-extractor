@@ -14,6 +14,8 @@
 		      :depends-on ("packages" "utils" "web-extractor"))))
 
 
-
-
+;; Install Quicklisp
+;; (push "/home/jmonetta/MyProjects/web-extractor/" ASDF:*CENTRAL-REGISTRY*)
+;; (ql:quickload '("drakma" "puri" "cl-ppcre" "cl-libxml2" "closure-html" "cxml" "lisp-unit" "cl-json" "cl-who" "hunchentoot"))
+;; 
 
