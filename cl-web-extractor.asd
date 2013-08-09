@@ -14,3 +14,5 @@
 		      :depends-on ("packages" "utils"))
 	       (:file "web-extractor-tests"
 		      :depends-on ("packages" "utils" "web-extractor"))))
+
+;;(ql:quickload "drakma" "puri" "cl-ppcre" "cl-libxml2" "closure-html" "cxml" "lisp-unit" "cl-json" "cl-who" "hunchentoot")
